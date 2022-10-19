@@ -47,7 +47,7 @@ def createAudiosDataset(metadataFile, audiosPath):
 #
 # Method for extracting the audio track + spectogram. 
 # The audio intensity is normalized between 0 and 1
-def extractSpectogram(filePath, arg_nfft=2048,arg_hoplen=512,arg_nmels=26):
+def extractSpectogram(filePath, arg_nfft=2048,arg_hoplen=512,arg_nmels=26, sr=44100):
 
     import librosa
     import pandas as pd
@@ -62,13 +62,9 @@ def extractSpectogram(filePath, arg_nfft=2048,arg_hoplen=512,arg_nmels=26):
 
     audioMatrix = audioMatrix / np.max(audioMatrix) #Normalize per amplitude
     #audioMatrix = audioMatrix / np.max(librosa.feature.rms(y=audioMatrix)) # Normalize per signal RMS
-    audioSignal_DF = pd.DataFrame({
-                "data": audioMatrix,
-                "time":timeArray
-                });
 
     # Extract Mel Spectogram
     spectMatrix = librosa.feature.melspectrogram(y=audioMatrix, sr=SR_CONST, n_fft=arg_nfft,hop_length=arg_hoplen, n_mels=arg_nmels)
     spectMatrix = spectMatrix #/ np.max(spectMatrix) #Normalize per amplitude
 
-    return audioSignal_DF, spectMatrix 
+    return audioMatrix, spectMatrix 
