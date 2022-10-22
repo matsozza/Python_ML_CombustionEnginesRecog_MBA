@@ -68,3 +68,45 @@ def extractSpectogram(filePath, arg_nfft=2048,arg_hoplen=512,arg_nmels=26, sr=44
     spectMatrix = spectMatrix #/ np.max(spectMatrix) #Normalize per amplitude
 
     return audioMatrix, spectMatrix 
+
+
+# --------------- extractAudioSubset ---------------
+#
+# Method for extracting the audio subsets
+# audio: Audio data to be segmented
+# isEngine: 1 for engine, 0 for others
+# audioOverlap: value from 0 to 1 indicating the segmenting overlap
+# audioSegSize: Number of samples desired per segment
+def extractAudioSubset(audio, isEngine, audioOverlap, audioSegSize):
+    import numpy as np
+
+    segAudio_A = []
+    isEngine_A = []
+    
+    # Get audio length / total duration
+    audioSize = (audio.shape[0])
+
+    print('------------ START--------')
+    print('-> audioSize' , audioSize)
+
+    if audioSize >= (1 + (1-audioOverlap)) * audioSegSize:
+        # Calculate num of subsegments to split current audio
+        numSubSegs = np.floor((audioSize - audioSegSize)/(audioSegSize*(1-audioOverlap))) +1
+        print('-> numSubSegs', int(numSubSegs))
+
+        # Create the array of subsegments 'subAudio_AA'
+        for idxSubAudio in range(int(numSubSegs)):
+            # print('---> ', idxSubAudio)
+            subStartIdx = int((idxSubAudio) * audioSegSize * (1- audioOverlap))
+            subEndIdx = int(subStartIdx +  audioSegSize )
+
+            segAudio_A.append(audio[subStartIdx : subEndIdx])
+            isEngine_A.append(isEngine)
+        
+    else:
+        print('-> numSubSegs: ZERO - too short!')
+    
+    return segAudio_A, isEngine_A
+
+
+
