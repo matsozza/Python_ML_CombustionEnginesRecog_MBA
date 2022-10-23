@@ -119,14 +119,18 @@ def extractAudioSubset(audio, dataFrame, audioOverlap, audioSegSize, sr):
 # Custom method to pick train/test dataframes based on folders
 # testFolders: Folders to be included in the 'test' dataframe (array)
 # audio_DF: Dataframe containing the sound mappings
-def trainTestFolder(testFolders, audio_DF):
+def trainTestFolder(testFolders, audio_DF, audio_AA):
     train_DF = pd.DataFrame(dfCols)
     test_DF = pd.DataFrame(dfCols)
+    train_AA = []
+    test_AA = []
     
     for idx, dfRow in audio_DF.iterrows():
         if dfRow['fold'] in testFolders:
             test_DF.loc[len(test_DF.index)] = dfRow
+            test_AA.append(audio_AA[idx])
         else:
             train_DF.loc[len(train_DF.index)] = dfRow
+            train_AA.append(audio_AA[idx])
 
-    return train_DF, test_DF
+    return train_DF, test_DF, train_AA, test_AA
