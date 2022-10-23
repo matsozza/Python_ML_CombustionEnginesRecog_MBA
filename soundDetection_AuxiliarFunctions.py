@@ -1,3 +1,22 @@
+
+# Libraries
+import pandas as pd
+import os
+import librosa
+import numpy as np
+import pandas as pd
+
+# Constants and globals
+dfCols = {
+    "path": [],
+    "filename": [],
+    "fold":[],
+    "duration":[],
+    "class":[],
+    "classID":[],
+    "isEngine": []
+    }
+
 # --------------- createAudiosDataset ---------------
 #
 # Method to read a csv file and create a dataframe from it.
@@ -7,22 +26,11 @@
 # metadataFile: Path to .csv file
 # audiosPath: Path where the audios referred in the metadataFile are stored;
 def createAudiosDataset(metadataFile, audiosPath):
-    
-    import pandas as pd
-    import os
-
     #Create a dataframe for the metadata (.csv) table
     metadata_DF = pd.read_csv(metadataFile)
 
     # Create audio DataFrame + define columns
-    audios_DF = pd.DataFrame({
-    "path": [],
-    "filename": [],
-    "fold":[],
-    "duration":[],
-    "class":[],
-    "classID":[]
-    });
+    audios_DF = pd.DataFrame(dfCols);
 
     # Process data originally from 'UrbanSounds8k' dataset and metadata file
     n_files = 0
@@ -43,7 +51,8 @@ def createAudiosDataset(metadataFile, audiosPath):
             dfRow['fold'], 
             (dfRow['end']-dfRow['start']),
             dfRow['class'], 
-            dfRow['classID']]
+            dfRow['classID'],
+            0]
 
             audios_DF.loc[len(audios_DF.index)] = dataToConcat
             n_files += 1
@@ -62,9 +71,6 @@ def createAudiosDataset(metadataFile, audiosPath):
 #
 # Method for extracting the audio track data (array).
 def loadAudioTrack(filePath, arg_sr=44100):
-
-    import librosa
-    
     # Extract audio
     audioMatrix, samplingRate = librosa.load(filePath, sr=arg_sr, mono=True)
     return audioMatrix
@@ -74,14 +80,12 @@ def loadAudioTrack(filePath, arg_sr=44100):
 #
 # Method for extracting the audio subsets
 # audio: Audio data to be segmented
-# isEngine: 1 for engine, 0 for others
+# dataFrame: Receive dataframe row corresponding to the audio to be segmented
 # audioOverlap: value from 0 to 1 indicating the segmenting overlap
 # audioSegSize: Number of samples desired per segment
-def extractAudioSubset(audio, isEngine, audioOverlap, audioSegSize):
-    import numpy as np
-
+def extractAudioSubset(audio, dataFrame, audioOverlap, audioSegSize, sr):
     segAudio_A = []
-    isEngine_A = []
+    segAudio_DF = pd.DataFrame(dfCols);
     
     # Get audio length / total duration
     audioSize = (audio.shape[0])
@@ -101,12 +105,28 @@ def extractAudioSubset(audio, isEngine, audioOverlap, audioSegSize):
             subEndIdx = int(subStartIdx +  audioSegSize )
 
             segAudio_A.append(audio[subStartIdx : subEndIdx])
-            isEngine_A.append(isEngine)
-        
+
+            segAudio_DF.loc[len(segAudio_DF.index)] = dataFrame
+            segAudio_DF['duration'] = audioSegSize/sr # Fix duration for the new snippet
     #else:
         #print('-> numSubSegs: ZERO - too short!')
     
-    return segAudio_A, isEngine_A
+    return segAudio_A, segAudio_DF
 
 
+# --------------- trainTestFolder ---------------
+#
+# Custom method to pick train/test dataframes based on folders
+# testFolders: Folders to be included in the 'test' dataframe (array)
+# audio_DF: Dataframe containing the sound mappings
+def trainTestFolder(testFolders, audio_DF):
+    train_DF = pd.DataFrame(dfCols)
+    test_DF = pd.DataFrame(dfCols)
+    
+    for idx, dfRow in audio_DF.iterrows():
+        if dfRow['fold'] in testFolders:
+            test_DF.loc[len(test_DF.index)] = dfRow
+        else:
+            train_DF.loc[len(train_DF.index)] = dfRow
 
+    return train_DF, test_DF
