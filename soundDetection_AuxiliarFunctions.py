@@ -16,16 +16,19 @@ def createAudiosDataset(metadataFile, audiosPath):
 
     # Create audio DataFrame + define columns
     audios_DF = pd.DataFrame({
+    "path": [],
     "filename": [],
+    "fold":[],
     "duration":[],
-    "class":[]
+    "class":[],
+    "classID":[]
     });
 
-    # Process data
+    # Process data originally from 'UrbanSounds8k' dataset and metadata file
     n_files = 0
     for index, dfRow in metadata_DF.iterrows():
         # Get audio file path
-        audioFilePath = audiosPath + '/' + dfRow['slice_file_name']
+        audioFilePath = audiosPath + 'fold' + str(dfRow['fold']) + '/' + dfRow['slice_file_name']
         
         # Provide feedback to the user
         if (n_files % 1000 == 0):
@@ -35,39 +38,36 @@ def createAudiosDataset(metadataFile, audiosPath):
         if not os.path.exists(audioFilePath):
             print(dfRow['slice_file_name'] + " (index=" + str(n_files) + ") does not exist!")
         else:
-            audios_DF.loc[len(audios_DF.index)] = [dfRow['slice_file_name'], dfRow['end']-dfRow['start'], dfRow['class']] 
+            dataToConcat = [audioFilePath,
+            dfRow['slice_file_name'], 
+            dfRow['fold'], 
+            (dfRow['end']-dfRow['start']),
+            dfRow['class'], 
+            dfRow['classID']]
+
+            audios_DF.loc[len(audios_DF.index)] = dataToConcat
             n_files += 1
 
     print("Number of processed audio files: " + str(n_files))
 
+    # Create the 'isEngine' column
+    audios_DF['isEngine'] = audios_DF['class'].map({'engine_idling': 1, 'air_conditioner':0, 'car_horn':0,
+                                       'children_playing':0, 'dog_bark':0, 'drilling':0, 'gun_shot':0,
+                                       'jackhammer':0, 'siren':0, 'street_music':0}, na_action=None)
+
     return audios_DF
 
 
-# --------------- extractSpectogram ---------------
+# --------------- loadAudioTrack ---------------
 #
-# Method for extracting the audio track + spectogram. 
-# The audio intensity is normalized between 0 and 1
-def extractSpectogram(filePath, arg_nfft=2048,arg_hoplen=512,arg_nmels=26, sr=44100):
+# Method for extracting the audio track data (array).
+def loadAudioTrack(filePath, arg_sr=44100):
 
     import librosa
-    import pandas as pd
-    import numpy as np
-
-    SR_CONST=44100
     
-    # Extract audio + normalize
-    audioMatrix, samplingRate = librosa.load(filePath, sr=SR_CONST, mono=True)
-    numSamples = len(audioMatrix)
-    timeArray = np.linspace(0, (numSamples-1)/SR_CONST, numSamples)
-
-    audioMatrix = audioMatrix / np.max(audioMatrix) #Normalize per amplitude
-    #audioMatrix = audioMatrix / np.max(librosa.feature.rms(y=audioMatrix)) # Normalize per signal RMS
-
-    # Extract Mel Spectogram
-    spectMatrix = librosa.feature.melspectrogram(y=audioMatrix, sr=SR_CONST, n_fft=arg_nfft,hop_length=arg_hoplen, n_mels=arg_nmels)
-    spectMatrix = spectMatrix #/ np.max(spectMatrix) #Normalize per amplitude
-
-    return audioMatrix, spectMatrix 
+    # Extract audio
+    audioMatrix, samplingRate = librosa.load(filePath, sr=arg_sr, mono=True)
+    return audioMatrix
 
 
 # --------------- extractAudioSubset ---------------
@@ -86,13 +86,13 @@ def extractAudioSubset(audio, isEngine, audioOverlap, audioSegSize):
     # Get audio length / total duration
     audioSize = (audio.shape[0])
 
-    print('------------ START--------')
-    print('-> audioSize' , audioSize)
+    #print('------------ START--------')
+    #print('-> audioSize' , audioSize)
 
     if audioSize >= (1 + (1-audioOverlap)) * audioSegSize:
         # Calculate num of subsegments to split current audio
         numSubSegs = np.floor((audioSize - audioSegSize)/(audioSegSize*(1-audioOverlap))) +1
-        print('-> numSubSegs', int(numSubSegs))
+        #print('-> numSubSegs', int(numSubSegs))
 
         # Create the array of subsegments 'subAudio_AA'
         for idxSubAudio in range(int(numSubSegs)):
@@ -103,8 +103,8 @@ def extractAudioSubset(audio, isEngine, audioOverlap, audioSegSize):
             segAudio_A.append(audio[subStartIdx : subEndIdx])
             isEngine_A.append(isEngine)
         
-    else:
-        print('-> numSubSegs: ZERO - too short!')
+    #else:
+        #print('-> numSubSegs: ZERO - too short!')
     
     return segAudio_A, isEngine_A
 
